@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>匯率計算機</title>
+    <!-- Favicon -->
+    <link rel="icon" href="img/logo.png" type="image/png">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <script>
+        // 狀態管理
+        const state = {
+            input: '0',
+            result: 0,
+            fromCurrency: 'JPY',
+            toCurrency: 'TWD',
+            rates: {},
+            loading: true,
+            lastUpdated: '',
+            error: null,
+            themeMode: 'blue',
+            showThemeMenu: false
+        };
+
+        // 主題設定
+        const themes = {
+            blue: {
+                name: '海鹽冰藍',
+                bg: 'bg-gradient-to-br from-[#D2E3ED] via-[#EDF5F8] to-[#C1D6E3]',
+                card: 'bg-white/80 shadow-[#B0C4D1]/50 border-white/60 backdrop-blur-md',
+                textMain: 'text-[#425E73]',
+                textInput: 'text-[#4A90E2]',
+                textSub: 'text-[#8AA1B3]',
+                headerIcon: 'bg-[#DCEBF2] text-[#5C8299]',
+                divider: 'bg-[#DCEBF2]',
+                arrowBtn: 'bg-[#F2F8FA] border-2 border-[#DCEBF2] shadow-[#C8DBE6]/50 text-[#6B90A8] hover:text-white hover:bg-[#6B90A8]',
+                resultText: 'text-transparent bg-clip-text bg-gradient-to-r from-[#425E73] to-[#5C8299]',
+                rateTag: 'bg-[#DCEBF2]/50 backdrop-blur-sm text-[#5C8299]',
+                selectPrimary: 'bg-[#DCEBF2] text-[#355266] group-hover:ring-[#C8DBE6]',
+                selectSecondary: 'bg-[#EDF5F8] text-[#8AA1B3] group-hover:ring-[#DCEBF2]',
+                keyboardBg: 'bg-[#EDF5F8]/60 border-[#DCEBF2]',
+                btnBase: 'bg-gradient-to-b from-white/70 to-white/20 backdrop-blur-xl border border-white/60 text-[#425E73] shadow-[0_4px_0_0_#CDD6DD] hover:from-white/80 hover:to-white/30',
+                btnOp: 'bg-gradient-to-b from-[#D1E3ED]/80 to-[#D1E3ED]/30 backdrop-blur-xl border border-white/30 text-[#355266] shadow-[0_4px_0_0_#BCCCD6] hover:from-[#D1E3ED] hover:to-[#D1E3ED]/50',
+                btnHigh: 'bg-gradient-to-b from-[#E3EFF5]/90 to-[#E3EFF5]/40 backdrop-blur-xl text-[#425E73] shadow-[0_4px_0_0_#D1E3ED] hover:from-[#E3EFF5] hover:to-[#E3EFF5]/60',
+                btnEq: 'bg-gradient-to-br from-[#6FA5C4] to-[#4D7691] border border-white/20 text-[#F5F9FB] shadow-[0_4px_0_0_#8AA1B3] hover:opacity-90',
+                btnDel: 'text-[#425E73]',
+                btnC: 'text-[#B07C7C]',
+                refreshBtn: 'hover:bg-[#DCEBF2] text-[#8AA1B3] hover:text-[#5C8299]'
+            },
+            forest: {
+                name: '鼠尾草綠',
+                bg: 'bg-gradient-to-br from-[#D8E2DC] via-[#ECEEEB] to-[#D0DCD5]',
+                card: 'bg-white/80 shadow-[#BCC5C0]/50 border-white/60 backdrop-blur-md',
+                textMain: 'text-[#465F52]',
+                textInput: 'text-[#45A16B]',
+                textSub: 'text-[#8EA396]',
+                headerIcon: 'bg-[#E0E8E3] text-[#557362]',
+                divider: 'bg-[#E0E8E3]',
+                arrowBtn: 'bg-[#F4F7F5] border-2 border-[#E0E8E3] shadow-[#C8D1CC]/50 text-[#6B8A78] hover:text-white hover:bg-[#6B8A78]',
+                resultText: 'text-transparent bg-clip-text bg-gradient-to-r from-[#465F52] to-[#5E7E6D]',
+                rateTag: 'bg-[#E0E8E3]/50 backdrop-blur-sm text-[#557362]',
+                selectPrimary: 'bg-[#E0E8E3] text-[#2F4538] group-hover:ring-[#CCD6D0]',
+                selectSecondary: 'bg-[#F0F4F2] text-[#7A9185] group-hover:ring-[#E0E8E3]',
+                keyboardBg: 'bg-[#F0F4F2]/60 border-[#E0E8E3]',
+                btnBase: 'bg-gradient-to-b from-white/70 to-white/20 backdrop-blur-xl border border-white/60 text-[#557362] shadow-[0_4px_0_0_#C8D1CC] hover:from-white/80 hover:to-white/30',
+                btnOp: 'bg-gradient-to-b from-[#D3DDD8]/80 to-[#D3DDD8]/30 backdrop-blur-xl border border-white/30 text-[#3A5245] shadow-[0_4px_0_0_#C0CCC6] hover:from-[#D3DDD8] hover:to-[#D3DDD8]/50',
+                btnHigh: 'bg-gradient-to-b from-[#E6ECE9]/90 to-[#E6ECE9]/40 backdrop-blur-xl text-[#4A6356] shadow-[0_4px_0_0_#D3DDD8] hover:from-[#E6ECE9] hover:to-[#E6ECE9]/60',
+                btnEq: 'bg-gradient-to-br from-[#7A9687] to-[#5E7E6D] border border-white/20 text-[#F4F7F5] shadow-[0_4px_0_0_#A3B8AD] hover:opacity-90',
+                btnDel: 'text-[#557362]',
+                btnC: 'text-[#A87B7B]',
+                refreshBtn: 'hover:bg-[#E0E8E3] text-[#8EA396] hover:text-[#557362]'
+            },
+            yellow: {
+                name: '燕麥奶茶',
+                bg: 'bg-gradient-to-br from-[#F0E6D2] via-[#F9F5EF] to-[#E6D9C0]',
+                card: 'bg-white/80 shadow-[#D6CBB8]/50 border-white/60 backdrop-blur-md',
+                textMain: 'text-[#6E6152]',
+                textInput: 'text-[#E0A800]',
+                textSub: 'text-[#AFA395]',
+                headerIcon: 'bg-[#EEE6D8] text-[#8C7B65]',
+                divider: 'bg-[#EEE6D8]',
+                arrowBtn: 'bg-[#FCF9F4] border-2 border-[#EEE6D8] shadow-[#E0D4C2]/50 text-[#A69376] hover:text-white hover:bg-[#A69376]',
+                resultText: 'text-transparent bg-clip-text bg-gradient-to-r from-[#8C7B65] to-[#6E6152]',
+                rateTag: 'bg-[#EEE6D8]/50 backdrop-blur-sm text-[#8C7B65]',
+                selectPrimary: 'bg-[#EEE6D8] text-[#594E42] group-hover:ring-[#E0D4C2]',
+                selectSecondary: 'bg-[#F7F2EB] text-[#AFA395] group-hover:ring-[#EEE6D8]',
+                keyboardBg: 'bg-[#F7F2EB]/60 border-[#EEE6D8]',
+                btnBase: 'bg-gradient-to-b from-white/70 to-white/20 backdrop-blur-xl border border-white/60 text-[#6E6152] shadow-[0_4px_0_0_#E0D4C2] hover:from-white/80 hover:to-white/30',
+                btnOp: 'bg-gradient-to-b from-[#E6DCC8]/80 to-[#E6DCC8]/30 backdrop-blur-xl border border-white/30 text-[#594E42] shadow-[0_4px_0_0_#D1C6B4] hover:from-[#E6DCC8] hover:to-[#E6DCC8]/50',
+                btnHigh: 'bg-gradient-to-b from-[#F0E8DA]/90 to-[#F0E8DA]/40 backdrop-blur-xl text-[#6E6152] shadow-[0_4px_0_0_#E0D4C2] hover:from-[#F0E8DA] hover:to-[#F0E8DA]/60',
+                btnEq: 'bg-gradient-to-br from-[#C2B092] to-[#A69376] border border-white/20 text-[#FCF9F4] shadow-[0_4px_0_0_#C7B695] hover:opacity-90',
+                btnDel: 'text-[#6E6152]',
+                btnC: 'text-[#B07C7C]',
+                refreshBtn: 'hover:bg-[#EEE6D8] text-[#AFA395] hover:text-[#8C7B65]'
+            },
+            dreamy: {
+                name: '霧光紫韻',
+                bg: 'bg-gradient-to-br from-[#E3D8E3] via-[#F2EDF2] to-[#D6CADD]',
+                card: 'bg-white/80 shadow-[#C8BEC6]/50 border-white/60 backdrop-blur-md',
+                textMain: 'text-[#5D4E60]',
+                textInput: 'text-[#A66CB5]',
+                textSub: 'text-[#9E8FA3]',
+                headerIcon: 'bg-[#EADDE8] text-[#7A607C]',
+                divider: 'bg-[#EADDE8]',
+                arrowBtn: 'bg-[#F9F4F8] border-2 border-[#EADDE8] shadow-[#DBCBD8]/50 text-[#8C7391] hover:text-white hover:bg-[#8C7391]',
+                resultText: 'text-transparent bg-clip-text bg-gradient-to-r from-[#5D4E60] to-[#7A607C]',
+                rateTag: 'bg-[#EADDE8]/50 backdrop-blur-sm text-[#7A607C]',
+                selectPrimary: 'bg-[#EADDE8] text-[#4A3B4D] group-hover:ring-[#DBCBD8]',
+                selectSecondary: 'bg-[#F4EFF4] text-[#9E8FA3] group-hover:ring-[#EADDE8]',
+                keyboardBg: 'bg-[#F4EFF4]/60 border-[#EADDE8]',
+                btnBase: 'bg-gradient-to-b from-white/70 to-white/20 backdrop-blur-xl border border-white/60 text-[#5D4E60] shadow-[0_4px_0_0_#DBCBD8] hover:from-white/80 hover:to-white/30',
+                btnOp: 'bg-gradient-to-b from-[#DBCBD8]/80 to-[#DBCBD8]/30 backdrop-blur-xl border border-white/30 text-[#4A3B4D] shadow-[0_4px_0_0_#C8BEC6] hover:from-[#DBCBD8] hover:to-[#DBCBD8]/50',
+                btnHigh: 'bg-gradient-to-b from-[#E8DEE5]/90 to-[#E8DEE5]/40 backdrop-blur-xl text-[#5D4E60] shadow-[0_4px_0_0_#DBCBD8] hover:from-[#E8DEE5] hover:to-[#E8DEE5]/60',
+                btnEq: 'bg-gradient-to-br from-[#8C7391] to-[#705A75] border border-white/20 text-[#F9F4F8] shadow-[0_4px_0_0_#9E8FA3] hover:opacity-90',
+                btnDel: 'text-[#5D4E60]',
+                btnC: 'text-[#A87B7B]',
+                refreshBtn: 'hover:bg-[#EADDE8] text-[#9E8FA3] hover:text-[#7A607C]'
+            }
+        };
+
+        const currencies = [
+            { code: 'TWD', name: '新台幣', flag: '🇹🇼' },
+            { code: 'JPY', name: '日圓', flag: '🇯🇵' },
+            { code: 'KRW', name: '韓圜', flag: '🇰🇷' },
+            { code: 'THB', name: '泰銖', flag: '🇹🇭' },
+            { code: 'USD', name: '美元', flag: '🇺🇸' },
+            { code: 'HKD', name: '港幣', flag: '🇭🇰' },
+            { code: 'CNY', name: '人民幣', flag: '🇨🇳' },
+            { code: 'GBP', name: '英鎊', flag: '🇬🇧' },
+            { code: 'AUD', name: '澳幣', flag: '🇦🇺' },
+            { code: 'CAD', name: '加幣', flag: '🇨🇦' },
+            { code: 'SGD', name: '新幣', flag: '🇸🇬' },
+            { code: 'EUR', name: '歐元', flag: '🇪🇺' },
+        ];
+
+        async function fetchRates() {
+            state.loading = true;
+            state.error = null;
+            render();
+            try {
+                const response = await fetch('https://open.er-api.com/v6/latest/USD');
+                const data = await response.json();
+                state.rates = data.rates;
+                const date = new Date(data.time_last_update_unix * 1000);
+                state.lastUpdated = date.toLocaleString('zh-TW', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                state.loading = false;
+            } catch (err) {
+                console.error("Failed to fetch rates", err);
+                state.error = "無法更新匯率";
+                state.loading = false;
+                state.rates = {
+                    USD: 1, TWD: 32.5, JPY: 155.2, EUR: 0.92, CNY: 7.23,
+                    KRW: 1380, HKD: 7.8, GBP: 0.79, AUD: 1.5, CAD: 1.36, SGD: 1.35, THB: 36.5
+                };
+            }
+            render();
+        }
+
+        function handleCalculate(expression) {
+            try {
+                const safeEval = new Function('return ' + expression.replace(/[^0-9+\-*/.]/g, ''));
+                const calcResult = safeEval();
+                if (!isFinite(calcResult) || isNaN(calcResult)) return 0;
+                return calcResult;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function calculateResult() {
+            let expression = state.input;
+            if (['+', '-', '*', '/'].includes(state.input.slice(-1))) {
+                expression = state.input.slice(0, -1);
+            }
+            if (expression === '') {
+                state.result = 0;
+            } else {
+                const val = handleCalculate(expression);
+                state.result = val;
+            }
+            render();
+        }
+
+        function getConvertedValue() {
+            if (!state.rates[state.fromCurrency] || !state.rates[state.toCurrency]) return 0;
+            const inUSD = state.result / state.rates[state.fromCurrency];
+            return inUSD * state.rates[state.toCurrency];
+        }
+
+        function formatCurrency(val, currencyCode) {
+            const digits = ['JPY', 'KRW', 'TWD'].includes(currencyCode) ? 0 : 2;
+            return val.toLocaleString('zh-TW', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: digits
+            });
+        }
+
+        function getExchangeRateDisplay() {
+            if (!state.rates[state.fromCurrency] || !state.rates[state.toCurrency]) return '...';
+            const rate = (1 / state.rates[state.fromCurrency]) * state.rates[state.toCurrency];
+            return `1 ${state.fromCurrency} ≈ ${rate.toLocaleString('zh-TW', { maximumFractionDigits: 4 })} ${state.toCurrency}`;
+        }
+
+        // Actions
+        window.handlePress = (val) => {
+            if (val === 'C') {
+                state.input = '0';
+                state.result = 0;
+            } else if (val === 'DEL') {
+                if (state.input.length > 1) {
+                    state.input = state.input.slice(0, -1);
+                } else {
+                    state.input = '0';
+                }
+            } else if (val === '=') {
+                state.input = state.result.toString();
+            } else if (['+', '-', '*', '/'].includes(val)) {
+                if (['+', '-', '*', '/'].includes(state.input.slice(-1))) {
+                    state.input = state.input.slice(0, -1) + val;
+                } else {
+                    state.input = state.input + val;
+                }
+            } else {
+                if (state.input === '0' && val !== '.') {
+                    state.input = val;
+                } else {
+                    const parts = state.input.split(/[\+\-\*\/]/);
+                    const currentNum = parts[parts.length - 1];
+                    if (val === '.' && currentNum.includes('.')) return;
+                    state.input = state.input + val;
+                }
+            }
+            calculateResult();
+        };
+
+        window.swapCurrencies = () => {
+            const temp = state.fromCurrency;
+            state.fromCurrency = state.toCurrency;
+            state.toCurrency = temp;
+            render();
+        };
+
+        window.setFromCurrency = (val) => {
+            state.fromCurrency = val;
+            render();
+        };
+
+        window.setToCurrency = (val) => {
+            state.toCurrency = val;
+            render();
+        };
+
+        window.toggleThemeMenu = () => {
+            state.showThemeMenu = !state.showThemeMenu;
+            render();
+        };
+
+        window.setTheme = (mode) => {
+            state.themeMode = mode;
+            state.showThemeMenu = false;
+            render();
+        };
+
+        window.refreshRates = () => {
+            fetchRates();
+        };
+
+        // Components (as HTML strings)
+        const CurrencySelector = (value, onChangeName, label, align = "left", primary = false, currentTheme) => {
+            const options = currencies.map(c =>
+                `<option value="${c.code}" ${c.code === value ? 'selected' : ''} class="text-slate-700">${c.flag} ${c.code} - ${c.name}</option>`
+            ).join('');
+
+            return `
+            <div class="flex flex-col ${align === "right" ? "items-end" : "items-start"} relative group">
+                <span class="text-[10px] uppercase font-bold tracking-wider mb-1 px-1 ${currentTheme.textSub}">${label}</span>
+                <div class="relative flex items-center rounded-xl px-3 py-1.5 transition-all group-hover:ring-2 group-hover:ring-offset-1 ${primary ? currentTheme.selectPrimary : currentTheme.selectSecondary}">
+                    <select 
+                        onchange="${onChangeName}(this.value)"
+                        class="appearance-none bg-transparent font-bold text-sm sm:text-base pr-6 focus:outline-none cursor-pointer z-10 w-full text-inherit"
+                    >
+                        ${options}
+                    </select>
+                    <i data-lucide="chevron-down" class="absolute right-2 pointer-events-none opacity-60 w-3.5 h-3.5"></i>
+                </div>
+            </div>`;
+        };
+
+        const CalcButton = (label, currentTheme, highlight = false, operator = false, className = "") => {
+            let baseStyles = "h-14 sm:h-16 rounded-2xl text-xl sm:text-2xl font-medium transition-all active:scale-95 flex items-center justify-center select-none active:shadow-none active:translate-y-1 cursor-pointer";
+            let colorStyles = currentTheme.btnBase;
+            let content = label;
+
+            if (operator) {
+                colorStyles = currentTheme.btnOp;
+                if (label === '*') content = '×';
+                if (label === '/') content = '÷';
+            } else if (highlight) {
+                colorStyles = currentTheme.btnHigh;
+            } else if (label === '=') {
+                colorStyles = currentTheme.btnEq;
+            }
+
+            if (label === 'DEL') content = `<i data-lucide="delete" class="w-6 h-6 stroke-[2.5px] ${currentTheme.btnDel}"></i>`;
+            if (label === 'C') content = `<span class="${currentTheme.btnC}">C</span>`;
+
+            return `
+                <button
+                    type="button"
+                    onclick="handlePress('${label}')"
+                    class="${baseStyles} ${colorStyles} ${className}"
+                >
+                    ${content}
+                </button>
+            `;
+        };
+
+        function render() {
+            const currentTheme = themes[state.themeMode];
+
+            // Generate Theme Menu Items
+            const themeItems = Object.entries(themes).map(([key, theme]) => `
+                <button
+                    type="button"
+                    onclick="event.stopPropagation(); setTheme('${key}')"
+                    class="w-full text-left px-3 py-3 rounded-xl flex items-center gap-3 transition-all transform active:scale-95 border border-transparent hover:shadow-md ${theme.bg} ${state.themeMode === key ? 'ring-2 ring-offset-1 ring-black/20' : ''}"
+                >
+                    <span class="text-sm font-bold ${themes[key].textMain}">${theme.name}</span>
+                    ${state.themeMode === key ? `<div class="ml-auto bg-white/50 p-1 rounded-full"><i data-lucide="check" class="w-3 h-3 ${themes[key].textMain}"></i></div>` : ''}
+                </button>
+            `).join('');
+
+            const html = `
+            <div class="h-[100dvh] w-full transition-colors duration-500 ${currentTheme.bg} flex items-center justify-center font-sans text-slate-800 relative overflow-hidden">
+                
+                ${state.showThemeMenu ? '<div class="fixed inset-0 z-40" onclick="toggleThemeMenu()"></div>' : ''}
+
+                <div class="w-full h-full max-w-md relative z-auto flex flex-col">
+                    
+                    <!-- 背景視覺層 -->
+                    <div class="absolute inset-0 sm:rounded-t-[2.5rem] transition-colors duration-300 border-x border-b sm:border-t ${currentTheme.card}"></div>
+
+                    <!-- Header -->
+                    <div class="p-3 sm:p-5 flex justify-between items-center border-b relative z-50 ${currentTheme.divider} shrink-0">
+                        <div class="flex items-center gap-2">
+                            <div class="p-2 rounded-xl transition-colors ${currentTheme.headerIcon}">
+                                <i data-lucide="globe" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                            </div>
+                            <div>
+                                <h1 class="font-bold text-2xl sm:text-3xl leading-tight ${currentTheme.textMain}">
+                                    匯率計算機 <span class="text-[10px] sm:text-xs font-medium ${currentTheme.textSub} ml-1">v2025.12.22.03</span>
+                                </h1>
+                                <div class="flex items-center gap-1.5 text-[10px] sm:text-xs font-medium ${currentTheme.textSub}">
+                                    <div class="w-1.5 h-1.5 rounded-full ${state.loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}"></div>
+                                    ${state.loading ? '更新中...' : `最後更新：${state.lastUpdated}`}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-1.5 relative">
+                            <button 
+                                type="button"
+                                onclick="toggleThemeMenu()" 
+                                class="p-2 rounded-xl transition-colors relative ${currentTheme.refreshBtn} ${state.showThemeMenu ? 'bg-black/5' : ''}"
+                            >
+                                <i data-lucide="palette" class="w-4 h-4 sm:w-[18px] sm:h-[18px]"></i>
+                            </button>
+
+                            ${state.showThemeMenu ? `
+                            <div class="absolute top-full right-0 mt-2 w-48 p-2 rounded-2xl shadow-xl border backdrop-blur-3xl overflow-hidden z-[60] flex flex-col gap-2 ${currentTheme.card}">
+                                <div class="px-2 py-1 text-xs font-bold opacity-50 ${currentTheme.textMain}">選擇主題配色</div>
+                                ${themeItems}
+                            </div>` : ''}
+
+                            <button type="button" onclick="refreshRates()" class="p-2 rounded-xl transition-colors ${currentTheme.refreshBtn}">
+                                <i data-lucide="refresh-cw" class="w-4 h-4 sm:w-[18px] sm:h-[18px] ${state.loading ? 'animate-spin' : ''}"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 內容區 -->
+                    <div class="relative z-10 flex-1 flex flex-col min-h-0">
+                        <div class="p-4 sm:p-6 pb-0 flex-col flex flex-1 min-h-0 overflow-y-auto">
+                            
+                            <!-- 上方：目標區域 -->
+                            <div class="flex flex-col mb-1 relative flex-1 justify-end [container-type:size]">
+                                <div class="w-full flex justify-between items-end mb-1">
+                                    ${CurrencySelector(state.toCurrency, "setToCurrency", "目標", "left", true, currentTheme)}
+                                    <div class="text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-lg mb-0.5 shadow-sm transition-colors ${currentTheme.rateTag}">
+                                        ${getExchangeRateDisplay()}
+                                    </div>
+                                </div>
+                                
+                                <div class="text-[38cqh] font-bold break-all text-right w-full tracking-tight py-1 transition-colors ${currentTheme.resultText}">
+                                    ${formatCurrency(getConvertedValue(), state.toCurrency)}
+                                    <span class="text-[13cqh] font-medium ml-2 ${currentTheme.textSub}">${state.toCurrency}</span>
+                                </div>
+                            </div>
+
+                            <!-- 交換按鈕 -->
+                            <div class="relative h-8 sm:h-12 flex items-center justify-center my-1 shrink-0">
+                                <div class="absolute w-full h-px ${currentTheme.divider}"></div>
+                                <button 
+                                    type="button"
+                                    onclick="swapCurrencies()"
+                                    class="absolute p-2 rounded-full shadow-lg transition-all z-10 active:scale-95 hover:scale-110 ${currentTheme.arrowBtn}"
+                                >
+                                    <i data-lucide="arrow-up-down" class="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5px]"></i>
+                                </button>
+                            </div>
+
+                            <!-- 下方：持有區域 -->
+                            <div class="flex flex-col mt-1 mb-2 flex-1 justify-start [container-type:size]">
+                                <div class="w-full flex justify-start mb-1">
+                                    ${CurrencySelector(state.fromCurrency, "setFromCurrency", "持有", "left", false, currentTheme)}
+                                </div>
+
+                                <div class="flex flex-col items-end w-full">
+                                    <div class="text-[28cqh] font-medium break-all text-right w-full font-mono tracking-tight transition-colors ${currentTheme.textInput}">
+                                        ${state.input}
+                                    </div>
+                                    ${state.input !== state.result.toString() && state.input !== '0' ? `
+                                    <div class="text-xs sm:text-sm font-mono mt-1 ${currentTheme.textSub}">= ${formatCurrency(state.result, state.fromCurrency)}</div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        ${state.error ? `
+                        <div class="mx-6 mb-2 bg-rose-50 border border-rose-100 text-rose-500 text-xs px-4 py-2 rounded-xl text-center font-medium shrink-0">
+                            ${state.error}
+                        </div>` : ''}
+
+                        <div class="p-2 sm:p-5 grid grid-cols-4 gap-2 sm:gap-3 border-t backdrop-blur-sm transition-colors ${currentTheme.keyboardBg} shrink-0">
+                            ${CalcButton("C", currentTheme, true)}
+                            ${CalcButton("DEL", currentTheme, true)}
+                            ${CalcButton("%", currentTheme, true, false, "opacity-40")}
+                            ${CalcButton("/", currentTheme, false, true)}
+
+                            ${CalcButton("7", currentTheme)}
+                            ${CalcButton("8", currentTheme)}
+                            ${CalcButton("9", currentTheme)}
+                            ${CalcButton("*", currentTheme, false, true)}
+
+                            ${CalcButton("4", currentTheme)}
+                            ${CalcButton("5", currentTheme)}
+                            ${CalcButton("6", currentTheme)}
+                            ${CalcButton("-", currentTheme, false, true)}
+
+                            ${CalcButton("1", currentTheme)}
+                            ${CalcButton("2", currentTheme)}
+                            ${CalcButton("3", currentTheme)}
+                            ${CalcButton("+", currentTheme, false, true)}
+
+                            ${CalcButton("0", currentTheme, false, false, "col-span-2")}
+                            ${CalcButton(".", currentTheme)}
+                            ${CalcButton("=", currentTheme, false, false, "shadow-indigo-300")}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.getElementById('root').innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Initial Run
+        fetchRates();
+    </script>
+</body>
+
+</html>
